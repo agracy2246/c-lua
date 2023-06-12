@@ -94,7 +94,10 @@ void lua_example_stack(void) {
 void lua_example_call_lua_function(int n1, int n2) {
     lua_State* L = luaL_newstate();
     luaL_openlibs(L);
-    luaL_dofile(L, "./scripts/pythagoras.lua");
+
+    if (luaL_dofile(L, "./scripts/pythagoras.lua") != LUA_OK) {
+        luaL_error(L, "Error: %s\n", lua_tostring(L, -1));
+    }
     // Push the pythagoras function to the stack.
     lua_getglobal(L, "pythagoras");
     if ( lua_isfunction(L, -1) ) {
@@ -105,6 +108,7 @@ void lua_example_call_lua_function(int n1, int n2) {
         lua_pcall(L, NUM_ARGS, NUM_RETURNS, 0);
 
         lua_Number pyth_result = lua_tonumber(L, -1);
+
         printf("Pyth %.2f\n", (float)pyth_result);
     }
     lua_close(L);
@@ -129,16 +133,93 @@ void lua_example_call_lua_function_factorial(int n) {
     lua_close(L);
 }
 
+int native_pythagoras(lua_State* L) {
+    lua_Number b = lua_tonumber(L, -1); // get last added param from stack
+    lua_Number a = lua_tonumber(L, -2); // get first added param from stack
+    lua_Number result = (a*a) + (b*b);
+    lua_pushnumber(L, result);
+
+    return 1; // returns how many values the function is returning as a result to the stack
+}
+
+
+// Call native function in C from Lua
+void lua_example_call_c_function(void) {
+    lua_pushcfunction(L, native_pythagoras);
+    lua_setglobal(L, "native_pythagoras");
+
+    luaL_dofile(L, "./scripts/pythagoras-native.lua");
+    lua_getglobal(L, "pythagoras");
+    if(lua_isfunction(L, -1)) {
+        lua_pushnumber(L, 3); // first func arg
+        lua_pushnumber(L, 4); // second func arg
+        lua_pcall(L, 2, 1, 0);
+
+        lua_Number result = lua_tonumber(L, -1);
+        printf("%f\n", (float)result);
+    }
+
+}
+
+typedef struct rectangle2d {
+    int x;
+    int y;
+    int width;
+    int height;
+} rectangle;
+
+int create_rectangle(lua_State* L) {
+    rectangle* rect = (rectangle*) lua_newuserdata(L, sizeof(rectangle));
+    rect->x = 0;
+    rect->y = 0;
+    rect->width = 69;
+    rect->height = 69;
+
+    return 1;
+}
+int change_rectangle_size (lua_State* L) {
+    rectangle* r = lua_touserdata(L,-3);
+    r->y = lua_tonumber(L, -1);
+    r->x = lua_tonumber(L, -2);
+
+    return 0;
+}
+void lua_example_userdata(void) {
+    // Expose our C function create_rectangle to Lua.
+    lua_pushcfunction(L, create_rectangle);
+    // Set a Lua global before running the script.
+    lua_setglobal(L, "create_rectangle");
+
+    // Expose our C function change_rectangle_size to Lua.
+    lua_pushcfunction(L, change_rectangle_size);
+    // Set a Lua global before running the script.
+    lua_setglobal(L, "change_rectangle_size");
+    // Run the script.
+    luaL_dofile(L, "./scripts/rectangle.lua");
+
+    lua_getglobal(L, "square");
+    if(lua_isuserdata(L, -1)) {
+        rectangle* r = (rectangle*) lua_touserdata(L, -1);
+        printf("x: %f y: %f    w:%d   h:%d\n", (float)r->x, (float)r->y, r->width, r->height);
+        
+    } else {
+        printf("We did not get a rectangle userdata from Lua.");
+    }
+
+}
+
 int main(int argc, char *argv[]) {
     L = luaL_newstate();
     // Opens and initializes the standard Lua libraries. Usually ran once to initialize the Lua environment.
     luaL_openlibs(L);
 
-    // lua_example_dofile();
-    // lua_example_getvar();
-    lua_example_stack();
-    // lua_example_call_lua_function(3,4);
+    //lua_example_dofile();
+    //lua_example_getvar();
+    //lua_example_stack();
+    //lua_example_call_lua_function(3,4);
     // lua_example_call_lua_function_factorial(5);
+    // lua_example_call_c_function();
+    lua_example_userdata();
 
     lua_close(L);
     return 0;
