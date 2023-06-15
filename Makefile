@@ -1,5 +1,5 @@
 build:
-	gcc -std=c99 -Wall ./lib/lua/src/*.c ./src/*.c -o main
+	gcc -std=c99 -Wall -I ./lib/sdl2/include ./lib/lua/src/*.c ./src/*.c -o main
 
 clean:
 	rm ./main
@@ -7,4 +7,4 @@ clean:
 run:
 	./main
 
-go: clean build run
+go: build run clean
