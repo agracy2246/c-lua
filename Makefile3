@@ -1,0 +1,10 @@
+build:
+	gcc -std=c99 -Wall -I  ./src/*.c -o main
+
+clean:
+	rm ./main
+
+run:
+	./main
+
+go: build run clean
